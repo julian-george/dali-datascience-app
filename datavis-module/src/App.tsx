@@ -19,7 +19,7 @@ const App = () => {
     <div className="App">
       {data ? (
         <div>
-          <CategoryProfitBar data={data} height={720} width={1280} />
+          <CategoryProfitBar data={data} height={640} width={1080} />
           <LocationQuantityMap />
           <TimeProfitLine />
         </div>

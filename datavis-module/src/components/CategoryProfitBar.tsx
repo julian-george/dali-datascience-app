@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, RefObject } from "react";
+import { useEffect, useState, useRef, useCallback, RefObject } from "react";
 import * as d3 from "d3";
+import "../App.css";
 
 interface ICategoryProfitBarProps {
   data: any[];
@@ -38,6 +39,8 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
   const [categoryData, setCategoryData] = useState<TCategoryData>({});
   const [subcategoryData, setSubcategoryData] = useState<TSubcategoryData>({});
   const [selectedData, setSelectedData] = useState<BarDatum[]>([]);
+  const [currentCategory, setCategory] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   useEffect(() => {
     const categoryProfitLists: CategoryLists = {};
     const subcategoryProfitLists: SubcategoryLists = {};
@@ -96,44 +99,123 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
         }));
       }
     }
+    changeSelectedData();
   }, [data]);
-  // TODO: make this useEffect dependent on user input
-  useEffect(() => {
-    const newSelectedData = Object.entries(categoryData).map(
-      ([category, datum]) => ({ category: category, mean: datum.mean })
-    );
-    setSelectedData(newSelectedData);
-  }, [categoryData]);
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  // Updates the selectedData to either the subcategories of category, or the categories if the input is null
+  const changeSelectedData = useCallback(
+    (category?: string) => {
+      const selectedCategories = category
+        ? subcategoryData[category]
+        : categoryData;
+      const newSelectedData = Object.entries(selectedCategories).map(
+        ([category, datum]) => ({ category: category, mean: datum.mean })
+      );
+      setSelectedData(newSelectedData);
+      const svgElement = d3.select(svgRef.current);
+      if (category) {
+        svgElement
+          .append("text")
+          .attr("x", marginLeft)
+          .attr("y", height - 16)
+          .attr("fill", "currentColor")
+          .attr("text-anchor", "start")
+          .attr("class", "back-text")
+          .style("cursor", "pointer")
+          .style("font-weight", "bold")
+          .style("font-size", "10px")
+          .text("← Back")
+          .on("click", () => {
+            changeSelectedData();
+          });
+      } else {
+        svgElement.selectAll(".back-text").remove();
+      }
+      setCategory(category || null);
+    },
+    [subcategoryData, categoryData, setSelectedData, svgRef]
+  );
 
+  useEffect(() => {
+    console.log("run");
+    const svgElement = d3.select(svgRef.current);
+    const bars = svgElement
+      .selectAll("rect")
+      .transition()
+      .duration(100)
+      .ease(d3.easeLinear)
+      .style("opacity", 1);
+    // .attr("opacity", 0);
+  }, [selectedData, svgRef]);
+
+  const marginLeft = 108;
+  const marginBottom = 32;
+  const marginTop = 32;
   const categoryList = selectedData.map((datum) => datum.category);
-  const x = d3.scaleBand().domain(categoryList).range([0, width]).padding(0);
-  console.log(x.bandwidth());
+  const x = d3
+    .scaleBand()
+    .domain(categoryList)
+    .range([marginLeft, width])
+    .padding(0.1);
   const means = Object.values(selectedData).map((datum) => datum.mean);
+  const maxMean = d3.max(means) || 0;
+  const graphMax = maxMean * 1.5;
+  const minMean = d3.min(means) || 0;
+  const graphMin = minMean >= 0 ? 0 : minMean * 1.5;
+  console.log(graphMin, graphMax);
   const y = d3
     .scaleLinear()
-    .domain([d3.min(means) || 0, d3.max(means) || 0])
-    .range([height, 0]);
-  const marginLeft = 32;
+    .domain([graphMin, graphMax])
+    .range([height - marginBottom, marginTop]);
+
   // Using refs here may be hacky, but it's better than working directly w/ SVGs like this recommends:
   //   https://2019.wattenberger.com/blog/react-and-d3
   useEffect(() => {
     const svgElement = d3.select(svgRef.current);
-    const axisGenerator = d3.axisBottom(x);
-    svgElement.append("g").call(axisGenerator);
+    // Clears previously rendered axes
+    svgElement.selectAll(".axis").remove();
     svgElement
       .append("g")
-      .attr("transform", `translate(${marginLeft},0)`)
+      .call(d3.axisBottom(x))
+      .attr("transform", `translate(0,${height - marginBottom})`)
+      .attr("class", "axis x-axis");
+    svgElement
+      .append("g")
       .call(d3.axisLeft(y))
       .call((g) =>
         g
           .append("text")
-          .attr("x", -1 * marginLeft)
-          .attr("y", 10)
+          .attr("x", -1 * marginLeft + 4)
+          .attr("y", y((graphMax - graphMin) / 2))
           .attr("fill", "currentColor")
-          .attr("text-anchor", "middle")
-          .text("Mean Profit")
-      );
+          .attr("text-anchor", "start")
+          .attr("font-size", 12)
+          .text("Mean Profit ($)")
+      )
+      .attr("transform", `translate(${marginLeft},0)`)
+      .attr("class", "axis");
+    if (minMean < 0) {
+      svgElement
+        .append("line")
+        .style("stroke", "black")
+        .style("stroke-width", 1)
+        .attr("class", "zero-line")
+        .attr("x1", marginLeft)
+        .attr("y1", y(0))
+        .attr("x2", width)
+        .attr("y2", y(0));
+    } else {
+      svgElement.selectAll(".zero-line").remove();
+    }
+    if (!currentCategory) {
+      svgElement
+        .selectAll(".x-axis .tick")
+        .style("font-weight", "bold")
+        .style("cursor", "pointer");
+      svgElement.selectAll(".x-axis .tick").on("click", (d) => {
+        const categoryName = d.target.innerHTML;
+        changeSelectedData(categoryName);
+      });
+    }
   }, [selectedData, svgRef]);
   return (
     <svg width={width} height={height} ref={svgRef}>
@@ -142,9 +224,11 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
           <rect
             key={datum.category}
             x={x(datum.category)}
-            y={y(datum.mean)}
-            height={y(0) - y(datum.mean)}
+            y={Math.min(y(datum.mean), y(0))}
+            height={Math.abs(y(0) - y(datum.mean))}
             width={x.bandwidth()}
+            // opacity={0}
+            style={{ opacity: 0 }}
             fill="steelblue"
           ></rect>
         ))}
