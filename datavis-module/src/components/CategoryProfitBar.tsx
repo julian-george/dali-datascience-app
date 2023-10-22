@@ -140,16 +140,20 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
     const svgElement = d3.select(svgRef.current);
     const bars = svgElement
       .selectAll("rect")
+      .on("mouseover", (bar) => {
+        // d3.select(this).transition();
+      })
       .transition()
       .duration(100)
       .ease(d3.easeLinear)
       .style("opacity", 1);
+
     // .attr("opacity", 0);
   }, [selectedData, svgRef]);
 
   const marginLeft = 108;
   const marginBottom = 32;
-  const marginTop = 32;
+  const marginTop = 0;
   const categoryList = selectedData.map((datum) => datum.category);
   const x = d3
     .scaleBand()
@@ -161,7 +165,6 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
   const graphMax = maxMean * 1.5;
   const minMean = d3.min(means) || 0;
   const graphMin = minMean >= 0 ? 0 : minMean * 1.5;
-  console.log(graphMin, graphMax);
   const y = d3
     .scaleLinear()
     .domain([graphMin, graphMax])
@@ -185,7 +188,7 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
         g
           .append("text")
           .attr("x", -1 * marginLeft + 4)
-          .attr("y", y((graphMax - graphMin) / 2))
+          .attr("y", y((graphMax + graphMin) / 2))
           .attr("fill", "currentColor")
           .attr("text-anchor", "start")
           .attr("font-size", 12)
@@ -218,22 +221,27 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
     }
   }, [selectedData, svgRef]);
   return (
-    <svg width={width} height={height} ref={svgRef}>
-      <g>
-        {selectedData.map((datum) => (
-          <rect
-            key={datum.category}
-            x={x(datum.category)}
-            y={Math.min(y(datum.mean), y(0))}
-            height={Math.abs(y(0) - y(datum.mean))}
-            width={x.bandwidth()}
-            // opacity={0}
-            style={{ opacity: 0 }}
-            fill="steelblue"
-          ></rect>
-        ))}
-      </g>
-    </svg>
+    <div style={{ width, height }}>
+      <h2 style={{ textAlign: "center" }}>
+        Average Profit by Product Category
+      </h2>
+      <svg width={width} height={height} ref={svgRef}>
+        <g>
+          {selectedData.map((datum) => (
+            <rect
+              key={datum.category}
+              x={x(datum.category)}
+              y={Math.min(y(datum.mean), y(0))}
+              height={Math.abs(y(0) - y(datum.mean))}
+              width={x.bandwidth()}
+              // opacity={0}
+              style={{ opacity: 0 }}
+              fill="steelblue"
+            ></rect>
+          ))}
+        </g>
+      </svg>
+    </div>
   );
 };
 
