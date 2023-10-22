@@ -13,3 +13,7 @@ The objective of my machine learning module will be to predict the profit of a s
 - Segment
 - State/Region
 - Category/Subcategory
+
+## Acknowledgements
+
+My linear regression implementation borrows heavily from [here](https://www.tensorflow.org/tutorials/keras/regression)

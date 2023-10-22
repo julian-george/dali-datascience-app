@@ -1,8 +1,12 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 import pandas as pd
 import os
+import seaborn as sns
 from dotenv import load_dotenv
+
+from util import frame_to_nparray
 
 load_dotenv()
 
@@ -11,7 +15,7 @@ CSV_FILE_PATH = os.environ["CSV_URL"]
 
 feature_frame = pd.read_csv(CSV_FILE_PATH, index_col=[0], low_memory=False)
 
-print(feature_frame.shape)
+print("Feature frame loaded, shape:", feature_frame.shape)
 
 selected_columns = [
     "Order Date",
@@ -26,12 +30,10 @@ selected_columns = [
 
 feature_frame = feature_frame[selected_columns]
 
-features = ["Month", "Ship Mode", "Segment", "Region", "Category", "Quantity"]
+features = ["Segment", "Quantity", "Region", "Month", "Ship Mode", "Category"]
 result_col = ["Profit"]
 
 X = pd.DataFrame({feature_name: [] for feature_name in features + ["Result"]})
-
-print(X)
 
 # For rows with NaN order dates, replace them with the ship dates. If the ship date is also NaN, leave it as NaN
 X["Month"] = [
@@ -67,7 +69,7 @@ X["Category"] = feature_frame["Category"].fillna("")
 X["Category"] = np.unique(X["Category"], return_inverse=True)[1]
 
 # Bring over quantity after replacing NaNs
-X["Quantity"] = feature_frame["Category"].fillna(-1)
+X["Quantity"] = feature_frame["Quantity"].fillna(-1)
 
 X["Result"] = feature_frame[result_col]
 
@@ -82,3 +84,93 @@ Y = X["Result"]
 X = X.drop(columns=["Result"])
 
 print(X.shape, Y.shape)
+
+X_train = X.sample(frac=0.8, random_state=0)
+X_test = X.drop(X_train.index)
+
+Y_train = Y[X_train.index]
+Y_test = Y.drop(X_train.index)
+
+X_train = frame_to_nparray(X_train)
+Y_train = frame_to_nparray(Y_train, add_dim=True)
+
+X_test = frame_to_nparray(X_test)
+Y_test = frame_to_nparray(Y_test, add_dim=True)
+
+normalization_layer = keras.layers.Normalization()
+normalization_layer.adapt(X_train)
+
+label_normalization_layer = keras.layers.Normalization()
+label_normalization_layer.adapt(Y_train)
+
+num_features = len(features)
+
+
+# print(keras.layers.Dense(num_features)(normalization_layer(X_train)))
+
+
+layer_list = [
+    normalization_layer,
+    keras.layers.Dense(1),
+]
+
+linear_regression_model = keras.Sequential(layer_list)
+
+linear_regression_model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss="mean_absolute_error"
+)
+
+history = linear_regression_model.fit(
+    X_train,
+    label_normalization_layer(Y_train),
+    verbose=False,
+    epochs=10,
+    validation_split=0.05,
+)
+
+
+def build_model(hp=None, normalize=True):
+    layer_num = 6
+
+    activation_function = "relu"
+
+    layer_list = []
+
+    if normalize:
+        layer_list.append(normalization_layer)
+    else:
+        layer_list.append(keras.layers.InputLayer(num_features))
+
+    for l_i in range(layer_num):
+        layer_list.append(keras.layers.Dense(num_features, activation_function))
+
+    layer_list.append(keras.layers.Dense(1))
+    model = keras.Sequential(layer_list)
+    model.build()
+    learning_rate = 0.001
+    opt = keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(
+        optimizer=opt,
+        loss=keras.losses.mean_absolute_error,
+    )
+    model.summary()
+
+    return model
+
+
+mlp_model = build_model()
+mlp_model.fit(
+    X_train,
+    label_normalization_layer(Y_train),
+    epochs=10,
+    validation_split=0.1,
+    verbose=False,
+)
+linear_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
+for i in range(1):
+    print(
+        linear_regression_model.predict(X_test[i]), label_normalization_layer(Y_test[i])
+    )
+mlp_model.evaluate(X_test, label_normalization_layer(Y_test))
+for i in range(1):
+    print(mlp_model.predict(X_test[i]), label_normalization_layer(Y_test[i]))
