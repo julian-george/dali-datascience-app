@@ -181,11 +181,16 @@ mlp_model.evaluate(X_test, Y_test)
 linear_val_loss = linear_history.history["val_loss"]
 linear_auc = linear_history.history["auc"]
 mlp_val_loss = mlp_history.history["val_loss"]
-mlp_auc = mlp_history.history["auc"]
+mlp_auc = mlp_history.history["auc_1"]
 
+
+loss_figure = plt.figure(0)
 plt.plot(range(epoch_num), linear_val_loss, label="Linear Regression Loss")
-plt.plot(range(epoch_num), linear_auc, label="Linear Regression AUC")
 plt.plot(range(epoch_num), mlp_val_loss, label="MLP Loss")
+plt.legend(loc="best")
+
+auc_figure = plt.figure(1)
+plt.plot(range(epoch_num), linear_auc, label="Linear Regression AUC")
 plt.plot(range(epoch_num), mlp_auc, label="MLP AUC")
 plt.legend(loc="best")
 
