@@ -49,6 +49,20 @@ const GRAPH_MARGIN_BOTTOM = 32;
 const GRAPH_MARGIN_TOP = 0;
 const LABEL_BAR_PADDING = 8;
 
+// Rounds numbers and properly appends dollar sign to negative numbers
+function numToDollars(num: number): string {
+  let dollarString = "";
+  num = Math.round(num * 100) / 100;
+  // If the num is negative, we want the "-" before the "$"
+  if (Math.sign(num) === -1) {
+    dollarString += "-";
+    num *= -1;
+  }
+  dollarString += "$";
+  dollarString += num.toString();
+  return dollarString;
+}
+
 const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
   const { data, height, width } = props;
   const [categoryData, setCategoryData] = useState<TCategoryData>({});
@@ -100,21 +114,22 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
     for (const row of data) {
       const category = row["Category"];
       // For our purposes, we just discard rows with no given category
-      if (category === "") continue;
+
       const subcategory = row["Sub-Category"];
+      if (category === "") continue;
       if (!(category in categoryProfitLists)) {
         categoryProfitLists[category] = [];
-        subcategoryProfitLists[category] = { [subcategory]: [] };
+        subcategoryProfitLists[category] = {};
       }
       const profit = Number(row["Profit"]);
       categoryProfitLists[category].push(profit);
 
       // Skip the subcategory processing if it's blank
+
       if (subcategory === "") continue;
       if (!(subcategory in subcategoryProfitLists[category])) {
         subcategoryProfitLists[category][subcategory] = [];
       }
-
       subcategoryProfitLists[category][subcategory].push(profit);
     }
     // Once we've assembled these lists, we take their means and add them to the category/subcategory data
@@ -152,7 +167,6 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
     }
     changeSelectedData();
   }, [data]);
-  // Updates the selectedData to either the subcategories of category, or the categories if the input is null
 
   useEffect(() => {
     const categoryList = selectedData.map((datum) => datum.category);
@@ -286,7 +300,7 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
                     textAnchor="middle"
                     fill="white"
                   >
-                    {Math.round(datum.mean * 100) / 100}
+                    {numToDollars(datum.mean)}
                   </text>
                 </g>
               ))
