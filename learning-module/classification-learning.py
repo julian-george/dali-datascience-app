@@ -23,25 +23,51 @@ selected_columns = [
     "Ship Date",
     "Ship Mode",
     "Segment",
-    "State",
+    "Region",
     "Sub-Category",
     "Quantity",
     "Profit",
     "Discount",
+    "Customer Name",
+    "Customer ID",
 ]
 
 feature_frame = feature_frame[selected_columns]
 
+# Feature column names
 features = [
     "Quantity",
-    "State",
+    "Region",
     "Month",
     "Ship Mode",
     "Sub-Category",
     "Profit",
     "Discount",
+    "Customer Frequency",
 ]
+# Result column
 result_col = ["Segment"]
+
+customer_name_id_dict = {}
+
+# Since we want to use Customer IDs to determine customer frequency (ie how many total purchases each customer has made),
+#   we fill in NaN customer IDs based on if they have had a name previously associated with them
+
+# This code assumes that customer IDs are unique to customer names
+for index, row in feature_frame.iterrows():
+    # If both customer name and ID aren't NaN, add them as a pairing to the dict
+    if isinstance(row["Customer Name"], str):
+        if isinstance(row["Customer ID"], str):
+            customer_name_id_dict[row["Customer Name"]] = row["Customer ID"]
+
+feature_frame["Customer ID"] = [
+    # Replace every customer ID with the ID linked to their name in the dictionary
+    customer_name_id_dict[row["Customer Name"]]
+    if isinstance(row["Customer Name"], str)
+    else row["Customer ID"]
+    for index, row in feature_frame.iterrows()
+]
+
 
 X = pd.DataFrame({feature_name: [] for feature_name in features + ["Result"]})
 
@@ -49,41 +75,31 @@ X = pd.DataFrame({feature_name: [] for feature_name in features + ["Result"]})
 X["Month"] = [
     (
         row["Order Date"]
-        if not (row["Order Date"] == "")
+        if isinstance(row["Order Date"], str)
         else row["Ship Date"]
-        if not (row["Ship Date"] == "")
-        else ""
+        if isinstance(row["Ship Date"], str)
+        else np.nan
     )
     for index, row in feature_frame.iterrows()
 ]
 
 # Then, grab the month from the full date string
 X["Month"] = [
-    date_str.split("/")[0] if isinstance(date_str, str) else ""
+    date_str.split("/")[0] if isinstance(date_str, str) else np.nan
     for date_str in X["Month"]
 ]
 
-# For these string-based features, we replace NaNs with empty strings,
-#   then convert them all into unique int signifiers
+# Grab the features
+X["Ship Mode"] = feature_frame["Ship Mode"]
+X["Region"] = feature_frame["Region"]
+X["Sub-Category"] = feature_frame["Sub-Category"]
+X["Customer Frequency"] = feature_frame["Customer ID"]
+X["Quantity"] = feature_frame["Quantity"]
+X["Profit"] = feature_frame["Profit"]
+X["Discount"] = feature_frame["Discount"]
 
-X["Ship Mode"] = feature_frame["Ship Mode"].fillna("")
-X["Ship Mode"] = np.unique(X["Ship Mode"], return_inverse=True)[1]
-
-# X["Segment"] = feature_frame["Segment"].fillna("")
-# X["Segment"] = np.unique(X["Segment"], return_inverse=True)[1]
-
-X["State"] = feature_frame["State"].fillna("")
-X["State"] = np.unique(X["State"], return_inverse=True)[1]
-
-X["Sub-Category"] = feature_frame["Sub-Category"].fillna("")
-X["Sub-Category"] = np.unique(X["Sub-Category"], return_inverse=True)[1]
-
-# Bring over quantity and profit after replacing NaNs
-X["Quantity"] = feature_frame["Quantity"].fillna(-1)
-X["Profit"] = feature_frame["Profit"].fillna(-1)
-X["Discount"] = feature_frame["Discount"].fillna(-1)
-
-
+# We are doing binary classification about whether the buyer is a regular consumer or a corporate customer
+#  we convert these two labels to 0 and 1, and the other label to nan to be removed
 X["Result"] = (
     feature_frame[result_col]
     .replace("Consumer", 0)
@@ -91,32 +107,29 @@ X["Result"] = (
     .replace("Home Office", np.nan)
 )
 
-X = X.replace("", np.nan)
-X["Quantity"] = X["Quantity"].replace(-1, np.nan)
-X["Profit"] = X["Profit"].replace(-1, np.nan)
-X["Discount"] = X["Discount"].replace(-1, np.nan)
-
 X = X.dropna()
 
+# For these string-based features, we convert them all into unique int signifiers
 
+X["Ship Mode"] = np.unique(X["Ship Mode"], return_inverse=True)[1]
+X["Region"] = np.unique(X["Region"], return_inverse=True)[1]
+X["Sub-Category"] = np.unique(X["Sub-Category"], return_inverse=True)[1]
+
+X["Customer Frequency"] = np.unique(X["Customer Frequency"], return_inverse=True)[1]
+X["Customer Frequency"] = np.bincount(X["Customer Frequency"])[X["Customer Frequency"]]
+
+# We divide up the feature matrix differently than with the regression model so that
+#   we have both the np matrices for the neural networks and the dataframes for the random forest
 X_df = X.copy(deep=True)
 
 X_train_df = X_df.sample(frac=0.8, random_state=0)
 X_test_df = X_df.drop(X_train_df.index)
-
-# Now that the NaNs have been dropped, we drop the result column and set the Y
-# We drop the NaNs late in the process so that it's easier to go back include NaN inputs if needed in the future
-Y = X["Result"]
-X = X.drop(columns=["Result"])
-
-print(X.shape, Y.shape)
 
 Y_train = X_train_df["Result"]
 Y_test = X_test_df["Result"]
 
 X_train = X_train_df.drop(columns=["Result"])
 X_test = X_test_df.drop(columns=["Result"])
-
 
 X_train = frame_to_nparray(X_train)
 Y_train = frame_to_nparray(Y_train, add_dim=True)
@@ -129,10 +142,9 @@ normalization_layer.adapt(X_train)
 
 num_features = len(features)
 
-epoch_num = 20
+epoch_num = 30
 
-# print(keras.layers.Dense(num_features)(normalization_layer(X_train)))
-
+### LINEAR REGRESSION ###
 
 linear_layer_list = [
     normalization_layer,
@@ -155,6 +167,8 @@ linear_history = linear_regression_model.fit(
     validation_split=0.05,
 )
 
+### LOGISTIC REGRESSION ###
+
 logistic_layer_list = [
     normalization_layer,
     keras.layers.Dense(1, activation="sigmoid"),
@@ -176,12 +190,15 @@ logistic_history = logistic_regression_model.fit(
     validation_split=0.05,
 )
 
-X_train_rforest = tfdf.keras.pd_dataframe_to_tf_dataset(X_train_df, label="Result")
+### RANDOM FOREST ###
 
+X_train_rforest = tfdf.keras.pd_dataframe_to_tf_dataset(X_train_df, label="Result")
 
 rforest_model = tfdf.keras.RandomForestModel()
 rforest_history = rforest_model.fit(X_train_rforest)
 rforest_model.compile(metrics=[keras.losses.binary_crossentropy, keras.metrics.AUC()])
+
+### MLP ###
 
 
 def build_model(hp=None, normalize=True):
@@ -222,22 +239,27 @@ mlp_history = mlp_model.fit(
     validation_split=0.1,
     verbose=False,
 )
+
+# Evaluating & printing the models' performances on the test data
 linear_regression_model.evaluate(X_test, Y_test)
 logistic_regression_model.evaluate(X_test, Y_test)
 mlp_model.evaluate(X_test, Y_test)
 X_test_rforest = tfdf.keras.pd_dataframe_to_tf_dataset(X_test_df, label="Result")
 rforest_auc = rforest_model.evaluate(X_test_rforest)[2]
 
+
+# Grab and plot models' validation loss histories
 linear_val_loss = linear_history.history["val_loss"]
-linear_auc = linear_history.history["auc"]
+linear_auc = linear_history.history["val_auc"]
 logistic_val_loss = logistic_history.history["val_loss"]
-logistic_auc = logistic_history.history["auc_1"]
+logistic_auc = logistic_history.history["val_auc_1"]
 rforest_val_loss = rforest_history.history["loss"]
 mlp_val_loss = mlp_history.history["val_loss"]
-mlp_auc = mlp_history.history["auc_3"]
+mlp_auc = mlp_history.history["val_auc_3"]
 
 
 loss_figure = plt.figure(0)
+# Not plotted because it's so much higher than the rest
 # plt.plot(range(epoch_num), linear_val_loss, label="Linear Regression Loss")
 plt.plot(range(epoch_num), logistic_val_loss, label="Logistic Regression Loss")
 plt.plot(range(epoch_num), mlp_val_loss, label="MLP Loss")
@@ -245,7 +267,7 @@ plt.plot(range(epoch_num), mlp_val_loss, label="MLP Loss")
 plt.plot(
     range(epoch_num),
     np.ones(np.array(range(epoch_num)).shape) * rforest_val_loss[0],
-    label="Random Forest Loss (static)",
+    label="Random Forest Loss",
 )
 plt.legend(loc="best")
 
@@ -257,7 +279,7 @@ plt.plot(range(epoch_num), mlp_auc, label="MLP AUC")
 plt.plot(
     range(epoch_num),
     np.ones(np.array(range(epoch_num)).shape) * rforest_auc,
-    label="Random Forest AUC (static)",
+    label="Random Forest AUC",
 )
 plt.legend(loc="best")
 

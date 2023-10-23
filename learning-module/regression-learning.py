@@ -30,7 +30,9 @@ selected_columns = [
 
 feature_frame = feature_frame[selected_columns]
 
+# These are the names of the feature columns
 features = ["Segment", "Quantity", "Region", "Month", "Ship Mode", "Category"]
+# This is what we will be predicting
 result_col = ["Profit"]
 
 X = pd.DataFrame({feature_name: [] for feature_name in features + ["Result"]})
@@ -42,76 +44,67 @@ X["Month"] = [
         if not (row["Order Date"] == "")
         else row["Ship Date"]
         if not (row["Ship Date"] == "")
-        else ""
+        else np.nan
     )
     for index, row in feature_frame.iterrows()
 ]
 
 # Then, grab the month from the full date string
 X["Month"] = [
-    date_str.split("/")[0] if isinstance(date_str, str) else ""
+    date_str.split("/")[0] if isinstance(date_str, str) else np.nan
     for date_str in X["Month"]
 ]
-
-# For these string-based features, we replace NaNs with empty strings,
-#   then convert them all into unique int signifiers
-
-X["Ship Mode"] = feature_frame["Ship Mode"].fillna("")
-X["Ship Mode"] = np.unique(X["Ship Mode"], return_inverse=True)[1]
-
-X["Segment"] = feature_frame["Segment"].fillna("")
-X["Segment"] = np.unique(X["Segment"], return_inverse=True)[1]
-
-X["Region"] = feature_frame["Region"].fillna("")
-X["Region"] = np.unique(X["Region"], return_inverse=True)[1]
-
-X["Category"] = feature_frame["Category"].fillna("")
-X["Category"] = np.unique(X["Category"], return_inverse=True)[1]
-
-# Bring over quantity after replacing NaNs
-X["Quantity"] = feature_frame["Quantity"].fillna(-1)
-
+# Bring the rest of the desired columns over to the input matrix
+X["Ship Mode"] = feature_frame["Ship Mode"]
+X["Segment"] = feature_frame["Segment"]
+X["Region"] = feature_frame["Region"]
+X["Category"] = feature_frame["Category"]
+X["Quantity"] = feature_frame["Quantity"]
 X["Result"] = feature_frame[result_col]
 
-X = X.replace("", np.nan)
-X["Quantity"] = X["Quantity"].replace(-1, np.nan)
-
+# Drop rows with NaN values
 X = X.dropna()
 
-# Now that the NaNs have been dropped, we drop the result column and set the Y
-# We drop the NaNs late in the process so that it's easier to go back include NaN inputs if needed in the future
+# This converts string features' values into unique integers, each integer representing a different value
+X["Ship Mode"] = np.unique(X["Ship Mode"], return_inverse=True)[1]
+X["Segment"] = np.unique(X["Segment"], return_inverse=True)[1]
+X["Region"] = np.unique(X["Region"], return_inverse=True)[1]
+X["Category"] = np.unique(X["Category"], return_inverse=True)[1]
+
+
 Y = X["Result"]
 X = X.drop(columns=["Result"])
 
-print(X.shape, Y.shape)
-
+# Split the matrix up
 X_train = X.sample(frac=0.8, random_state=0)
 X_test = X.drop(X_train.index)
 
 Y_train = Y[X_train.index]
 Y_test = Y.drop(X_train.index)
 
+# Convert the data frames to numpy arrays to be accepted by the model
 X_train = frame_to_nparray(X_train)
 Y_train = frame_to_nparray(Y_train, add_dim=True)
 
 X_test = frame_to_nparray(X_test)
 Y_test = frame_to_nparray(Y_test, add_dim=True)
 
+# Create a layer to normalize the inputted data
 normalization_layer = keras.layers.Normalization()
 normalization_layer.adapt(X_train)
 
-# label_normalization_layer = keras.layers.Normalization()
-# label_normalization_layer.adapt(Y_train)
+# I also experienced with normalizing the labels to get a better idea of the loss
+label_normalization_layer = keras.layers.Normalization()
+label_normalization_layer.adapt(Y_train)
 
-label_normalization_layer = lambda d: d
-# label_normalization_layer.adapt(Y_train)
+# Uncomment this to remove the label normalization
+# label_normalization_layer = lambda d: d
 
 num_features = len(features)
 
 epoch_num = 20
 
-# print(keras.layers.Dense(num_features)(normalization_layer(X_train)))
-
+### LINEAR REGRESSION MODEL ###
 
 layer_list = [
     normalization_layer,
@@ -131,6 +124,9 @@ linear_history = linear_regression_model.fit(
     epochs=epoch_num,
     validation_split=0.05,
 )
+
+
+### MLP MODEL ###
 
 
 def build_model(hp=None, normalize=True):
@@ -170,15 +166,12 @@ mlp_history = mlp_model.fit(
     validation_split=0.1,
     verbose=False,
 )
-linear_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
-for i in range(1):
-    print(
-        linear_regression_model.predict(X_test[i]), label_normalization_layer(Y_test[i])
-    )
-mlp_model.evaluate(X_test, label_normalization_layer(Y_test))
-for i in range(1):
-    print(mlp_model.predict(X_test[i]), label_normalization_layer(Y_test[i]))
 
+# Evaluate both models with test data
+linear_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
+mlp_model.evaluate(X_test, label_normalization_layer(Y_test))
+
+# Retrieve and plot validation loss from training process
 linear_val_loss = linear_history.history["val_loss"]
 mlp_val_loss = mlp_history.history["val_loss"]
 
