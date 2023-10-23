@@ -125,21 +125,40 @@ linear_history = linear_regression_model.fit(
     validation_split=0.05,
 )
 
+### LOGISTIC REGRESSION ###
+
+logistic_layer_list = [
+    normalization_layer,
+    keras.layers.Dense(1, activation="sigmoid"),
+]
+
+logistic_regression_model = keras.Sequential(logistic_layer_list)
+
+logistic_regression_model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss="mean_absolute_error",
+)
+
+logistic_history = logistic_regression_model.fit(
+    X_train,
+    Y_train,
+    verbose=False,
+    epochs=epoch_num,
+    validation_split=0.05,
+)
+
 
 ### MLP MODEL ###
 
 
-def build_model(hp=None, normalize=True):
+def build_model():
     layer_num = 6
 
     activation_function = "relu"
 
     layer_list = []
 
-    if normalize:
-        layer_list.append(normalization_layer)
-    else:
-        layer_list.append(keras.layers.InputLayer(num_features))
+    layer_list.append(normalization_layer)
 
     for l_i in range(layer_num):
         layer_list.append(keras.layers.Dense(num_features, activation_function))
@@ -169,13 +188,16 @@ mlp_history = mlp_model.fit(
 
 # Evaluate both models with test data
 linear_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
+logistic_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
 mlp_model.evaluate(X_test, label_normalization_layer(Y_test))
 
 # Retrieve and plot validation loss from training process
 linear_val_loss = linear_history.history["val_loss"]
+logistic_val_loss = logistic_history.history["val_loss"]
 mlp_val_loss = mlp_history.history["val_loss"]
 
 plt.plot(range(epoch_num), linear_val_loss, label="Linear Regression Loss")
+plt.plot(range(epoch_num), logistic_val_loss, label="Logistic Regression Loss")
 plt.plot(range(epoch_num), mlp_val_loss, label="MLP Loss")
 plt.legend(loc="best")
 

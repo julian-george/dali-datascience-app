@@ -142,7 +142,7 @@ normalization_layer.adapt(X_train)
 
 num_features = len(features)
 
-epoch_num = 30
+epoch_num = 20
 
 ### LINEAR REGRESSION ###
 
@@ -151,15 +151,15 @@ linear_layer_list = [
     keras.layers.Dense(1),
 ]
 
-linear_regression_model = keras.Sequential(linear_layer_list)
+linear_model = keras.Sequential(linear_layer_list)
 
-linear_regression_model.compile(
+linear_model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
     loss="binary_crossentropy",
     metrics=[keras.metrics.AUC()],
 )
 
-linear_history = linear_regression_model.fit(
+linear_history = linear_model.fit(
     X_train,
     Y_train,
     verbose=False,
@@ -174,15 +174,15 @@ logistic_layer_list = [
     keras.layers.Dense(1, activation="sigmoid"),
 ]
 
-logistic_regression_model = keras.Sequential(logistic_layer_list)
+logistic_model = keras.Sequential(logistic_layer_list)
 
-logistic_regression_model.compile(
+logistic_model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
     loss="binary_crossentropy",
     metrics=[keras.metrics.AUC()],
 )
 
-logistic_history = logistic_regression_model.fit(
+logistic_history = logistic_model.fit(
     X_train,
     Y_train,
     verbose=False,
@@ -190,28 +190,45 @@ logistic_history = logistic_regression_model.fit(
     validation_split=0.05,
 )
 
+X_train_tree = tfdf.keras.pd_dataframe_to_tf_dataset(X_train_df, label="Result")
+
 ### RANDOM FOREST ###
 
-X_train_rforest = tfdf.keras.pd_dataframe_to_tf_dataset(X_train_df, label="Result")
 
-rforest_model = tfdf.keras.RandomForestModel()
-rforest_history = rforest_model.fit(X_train_rforest)
+# Hyperparameters come from automatic tuning after following: https://www.tensorflow.org/decision_forests/tutorials/automatic_tuning_colab
+# Strangely, the loss and AUC worsened with the tuned hyperparameters, so I commented them out
+rforest_model = tfdf.keras.RandomForestModel(
+    # categorical_algorithm="RANDOM",
+    # growing_strategy="BEST_FIRST_GLOBAL",
+    # split_axis="SPARSE_OBLIQUE",
+    # sparse_oblique_normalization="MIN_MAX",
+    # sparse_oblique_weights="BINARY",
+    # sparse_oblique_num_projections_exponent=1.0,
+    # max_num_nodes=256,
+    # min_examples=20,
+    # max_depth=12,
+)
+rforest_history = rforest_model.fit(X_train_tree, verbose=1)
 rforest_model.compile(metrics=[keras.losses.binary_crossentropy, keras.metrics.AUC()])
+
+### GRADIENT BOOSTED TREE ###
+
+gb_model = tfdf.keras.GradientBoostedTreesModel()
+gb_history = gb_model.fit(X_train_tree)
+gb_model.compile(metrics=[keras.losses.binary_crossentropy, keras.metrics.AUC()])
+
 
 ### MLP ###
 
 
-def build_model(hp=None, normalize=True):
+def build_model():
     layer_num = 8
 
     activation_function = "relu"
 
     layer_list = []
 
-    if normalize:
-        layer_list.append(normalization_layer)
-    else:
-        layer_list.append(keras.layers.InputLayer(num_features))
+    layer_list.append(normalization_layer)
 
     for l_i in range(layer_num):
         layer_list.append(keras.layers.Dense(num_features, activation_function))
@@ -224,7 +241,7 @@ def build_model(hp=None, normalize=True):
     model.compile(
         optimizer=opt,
         loss=keras.losses.binary_crossentropy,
-        metrics=[keras.metrics.AUC()],
+        metrics=[keras.metrics.AUC(name="mlp_auc")],
     )
     model.summary()
 
@@ -240,12 +257,15 @@ mlp_history = mlp_model.fit(
     verbose=False,
 )
 
+X_test_tree = tfdf.keras.pd_dataframe_to_tf_dataset(X_test_df, label="Result")
+
+
 # Evaluating & printing the models' performances on the test data
-linear_regression_model.evaluate(X_test, Y_test)
-logistic_regression_model.evaluate(X_test, Y_test)
+linear_model.evaluate(X_test, Y_test)
+logistic_model.evaluate(X_test, Y_test)
 mlp_model.evaluate(X_test, Y_test)
-X_test_rforest = tfdf.keras.pd_dataframe_to_tf_dataset(X_test_df, label="Result")
-rforest_auc = rforest_model.evaluate(X_test_rforest)[2]
+(_, rforest_loss, rforest_auc) = rforest_model.evaluate(X_test_tree)
+(_, gb_loss, gb_auc) = gb_model.evaluate(X_test_tree)
 
 
 # Grab and plot models' validation loss histories
@@ -253,9 +273,8 @@ linear_val_loss = linear_history.history["val_loss"]
 linear_auc = linear_history.history["val_auc"]
 logistic_val_loss = logistic_history.history["val_loss"]
 logistic_auc = logistic_history.history["val_auc_1"]
-rforest_val_loss = rforest_history.history["loss"]
 mlp_val_loss = mlp_history.history["val_loss"]
-mlp_auc = mlp_history.history["val_auc_3"]
+mlp_auc = mlp_history.history["val_mlp_auc"]
 
 
 loss_figure = plt.figure(0)
@@ -263,23 +282,32 @@ loss_figure = plt.figure(0)
 # plt.plot(range(epoch_num), linear_val_loss, label="Linear Regression Loss")
 plt.plot(range(epoch_num), logistic_val_loss, label="Logistic Regression Loss")
 plt.plot(range(epoch_num), mlp_val_loss, label="MLP Loss")
-# Just to have the visual comparison, I plot the RF loss as a line, since it has no loss curve/history
+# Just to have the visual comparison, I plot the tree losses as lines, since it has no loss curve/history
 plt.plot(
     range(epoch_num),
-    np.ones(np.array(range(epoch_num)).shape) * rforest_val_loss[0],
+    np.ones(np.array(range(epoch_num)).shape) * rforest_loss,
     label="Random Forest Loss",
+)
+plt.plot(
+    range(epoch_num),
+    np.ones(np.array(range(epoch_num)).shape) * gb_loss,
+    label="Gradient Boosted Tree Loss",
 )
 plt.legend(loc="best")
 
 auc_figure = plt.figure(1)
-plt.plot(range(epoch_num), linear_auc, label="Linear Regression AUC")
+# plt.plot(range(epoch_num), linear_auc, label="Linear Regression AUC")
 plt.plot(range(epoch_num), logistic_auc, label="Logistic Regression AUC")
 plt.plot(range(epoch_num), mlp_auc, label="MLP AUC")
-# Same deal here with the random forest AUC visual
 plt.plot(
     range(epoch_num),
     np.ones(np.array(range(epoch_num)).shape) * rforest_auc,
     label="Random Forest AUC",
+)
+plt.plot(
+    range(epoch_num),
+    np.ones(np.array(range(epoch_num)).shape) * gb_auc,
+    label="Gradient Boosted Tree AUC",
 )
 plt.legend(loc="best")
 
