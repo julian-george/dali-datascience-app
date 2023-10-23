@@ -208,20 +208,22 @@ rforest_model = tfdf.keras.RandomForestModel(
     # min_examples=20,
     # max_depth=12,
 )
-rforest_history = rforest_model.fit(X_train_tree, verbose=1)
-rforest_model.compile(metrics=[keras.losses.binary_crossentropy, keras.metrics.AUC()])
+rforest_history = rforest_model.fit(X_train_tree, verbose=False)
+rforest_model.compile(
+    loss=keras.losses.binary_crossentropy, metrics=[keras.metrics.AUC()]
+)
 
 ### GRADIENT BOOSTED TREE ###
 
 gb_model = tfdf.keras.GradientBoostedTreesModel()
-gb_history = gb_model.fit(X_train_tree)
-gb_model.compile(metrics=[keras.losses.binary_crossentropy, keras.metrics.AUC()])
+gb_history = gb_model.fit(X_train_tree, verbose=False)
+gb_model.compile(loss=keras.losses.binary_crossentropy, metrics=[keras.metrics.AUC()])
 
 
 ### MLP ###
 
 
-def build_model():
+def build_model(hp=None, normalize=True):
     layer_num = 8
 
     activation_function = "relu"
@@ -243,7 +245,6 @@ def build_model():
         loss=keras.losses.binary_crossentropy,
         metrics=[keras.metrics.AUC(name="mlp_auc")],
     )
-    model.summary()
 
     return model
 
@@ -261,11 +262,16 @@ X_test_tree = tfdf.keras.pd_dataframe_to_tf_dataset(X_test_df, label="Result")
 
 
 # Evaluating & printing the models' performances on the test data
+print("Linear Model")
 linear_model.evaluate(X_test, Y_test)
+print("Logistic Model")
 logistic_model.evaluate(X_test, Y_test)
+print("MLP Model")
 mlp_model.evaluate(X_test, Y_test)
-(_, rforest_loss, rforest_auc) = rforest_model.evaluate(X_test_tree)
-(_, gb_loss, gb_auc) = gb_model.evaluate(X_test_tree)
+print("Random Forest Model")
+(rforest_loss, rforest_auc) = rforest_model.evaluate(X_test_tree)
+print("GB Tree Model")
+(gb_loss, gb_auc) = gb_model.evaluate(X_test_tree)
 
 
 # Grab and plot models' validation loss histories

@@ -93,12 +93,12 @@ Y_test = frame_to_nparray(Y_test, add_dim=True)
 normalization_layer = keras.layers.Normalization()
 normalization_layer.adapt(X_train)
 
-# I also experienced with normalizing the labels to get a better idea of the loss
+# I also experimented with normalizing the labels to get a better idea of the loss
 label_normalization_layer = keras.layers.Normalization()
 label_normalization_layer.adapt(Y_train)
 
 # Uncomment this to remove the label normalization
-# label_normalization_layer = lambda d: d
+label_normalization_layer = lambda d: d
 
 num_features = len(features)
 
@@ -141,7 +141,7 @@ logistic_regression_model.compile(
 
 logistic_history = logistic_regression_model.fit(
     X_train,
-    Y_train,
+    label_normalization_layer(Y_train),
     verbose=False,
     epochs=epoch_num,
     validation_split=0.05,
@@ -172,7 +172,6 @@ def build_model():
         optimizer=opt,
         loss=keras.losses.mean_absolute_error,
     )
-    model.summary()
 
     return model
 
@@ -187,8 +186,11 @@ mlp_history = mlp_model.fit(
 )
 
 # Evaluate both models with test data
+print("Linear Model")
 linear_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
+print("Logistic Model")
 logistic_regression_model.evaluate(X_test, label_normalization_layer(Y_test))
+print("MLP Model")
 mlp_model.evaluate(X_test, label_normalization_layer(Y_test))
 
 # Retrieve and plot validation loss from training process
