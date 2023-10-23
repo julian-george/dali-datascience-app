@@ -1,2 +1,0 @@
-# dali-datascience-app
- 

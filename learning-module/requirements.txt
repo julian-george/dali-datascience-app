@@ -4,3 +4,4 @@ numpy
 dotenv
 seaborn
 matplotlib
+tensorflow_decision_forests
