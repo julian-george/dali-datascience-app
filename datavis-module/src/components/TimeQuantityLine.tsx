@@ -57,6 +57,7 @@ const dictNumShortenedName: { [monthNum: number]: string } = {
   12: "Dec",
 };
 
+// Takes the previous month num and turns it into a string formatted for axis ticks
 function monthNumToTick(monthNum: number) {
   let tickName = "";
   tickName += dictNumShortenedName[(monthNum % 12) + 1];
@@ -66,8 +67,10 @@ function monthNumToTick(monthNum: number) {
 }
 
 const TimeQuantityLine = ({ data, width, height }: ITimeProfitLineProps) => {
+  // Object with quantity of sales month-by-month for each category
   const [categorySales, setCategorySales] = useState<TCategorySales>();
 
+  // Looping through the data, parsing the numeric months and associating them with their respective quantities
   useEffect(() => {
     const newCategorySales: TCategorySales = {};
     for (const row of data) {

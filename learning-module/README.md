@@ -1,7 +1,5 @@
 # DALI Machine Learning Challenge
 
-### Julian George, 24W
-
 # Usage
 
 Feel free to set this up in a virtual environment - I didn't use one in development. To set it up, I do the following:
@@ -36,3 +34,7 @@ My next problem, which I thought would have better results, was a binary classif
 Note: the tree model performances on these graphs are just the performance from the test evaluation, graphed for easy comparison
 ![Binary Classification Training Loss](results/image-2.png)
 ![Binary Classification Training AUC](results/image-3.png)
+
+# Authors
+
+- Julian George

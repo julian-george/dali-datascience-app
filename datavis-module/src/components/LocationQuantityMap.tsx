@@ -29,7 +29,7 @@ const zipToFips = zipfips as unknown as {
   [zip: string]: { STCOUNTYFP: number };
 };
 
-const MIN_BUBBLE_SIZE = 0;
+const MIN_BUBBLE_SIZE = 2;
 const MAX_BUBBLE_SIZE = 25;
 
 const LocationQuantityMap = ({
@@ -213,6 +213,7 @@ const LocationQuantityMap = ({
                     dy={-1 * circleData.radius - 2}
                     opacity="0"
                     pointerEvents="none"
+                    fontWeight={500}
                   >
                     {circleData.title} - {circleData.numOrders}
                   </text>
