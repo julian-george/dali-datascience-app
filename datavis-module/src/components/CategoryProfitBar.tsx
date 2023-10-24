@@ -35,13 +35,17 @@ type TBarDatum = {
 };
 
 type TRenderData = {
+  // List of category names for selected data
   categoryList: string[];
+  // Scalers convert data values to svg positions
   xScaler: d3.ScaleBand<string>;
   yScaler: d3.ScaleLinear<number, number, never>;
-  graphMax: number;
-  graphMin: number;
+  // Max and min of data
   minMean: number;
   maxMean: number;
+  // Max and min of displayed graph range
+  graphMax: number;
+  graphMin: number;
 };
 
 const GRAPH_MARGIN_LEFT = 108;
@@ -65,10 +69,16 @@ function numToDollars(num: number): string {
 
 const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
   const { data, height, width } = props;
-  const [categoryData, setCategoryData] = useState<TCategoryData>({});
+
+  // Contains useful data for rendering (see type)
   const [renderData, setRenderData] = useState<TRenderData | null>(null);
+  // Contains categories' mean profits
+  const [categoryData, setCategoryData] = useState<TCategoryData>({});
+  // Contains subcategories' mean profits
   const [subcategoryData, setSubcategoryData] = useState<TSubcategoryData>({});
+  // The categories/subcategories & profits for the selected scope
   const [selectedData, setSelectedData] = useState<TBarDatum[]>([]);
+  // Name of the current category whose subcategories you're viewing, or null if you're viewing category means
   const [currentCategory, setCategory] = useState<string | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -262,7 +272,7 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
       .style("opacity", 1);
   }, [svgRef, renderData, changeSelectedData, currentCategory, height, width]);
   return (
-    <div style={{ width, height }}>
+    <div>
       <h2 style={{ textAlign: "center" }}>
         Average Profit by Product Category
       </h2>

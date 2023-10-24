@@ -13,3 +13,7 @@ To use:
 1. Type `yarn` in terminal to install packages
 2. Type `yarn start` to start the web server
 3. See the graphs at `localhost:3000`!
+
+## Acknowledgement
+
+ZIP code to FIPS code conversion CSV comes from [here](https://data.world/niccolley/us-zipcode-to-county-state)

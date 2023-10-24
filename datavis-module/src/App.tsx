@@ -18,9 +18,9 @@ const App = () => {
   return (
     <div className="App">
       {data ? (
-        <div>
+        <div className="figure-container">
           <CategoryProfitBar data={data} height={640} width={1080} />
-          <LocationQuantityMap />
+          <LocationQuantityMap data={data} height={640} width={1080} />
           <TimeProfitLine />
         </div>
       ) : (
