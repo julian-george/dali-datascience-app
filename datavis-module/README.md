@@ -31,4 +31,5 @@ Future improvements would include adding interactability to all of the figures. 
 ## Acknowledgements
 
 The map figure owes a lot of guidance to [this example](https://observablehq.com/@d3/bubble-map/2?collection=@d3/d3-geo)
+
 ZIP code to FIPS code conversion CSV comes from [here](https://data.world/niccolley/us-zipcode-to-county-state)
