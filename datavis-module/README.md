@@ -16,4 +16,5 @@ To use:
 
 ## Acknowledgement
 
+The US Map owes a lot of guidance from [this example](https://observablehq.com/@d3/bubble-map/2?collection=@d3/d3-geo)
 ZIP code to FIPS code conversion CSV comes from [here](https://data.world/niccolley/us-zipcode-to-county-state)

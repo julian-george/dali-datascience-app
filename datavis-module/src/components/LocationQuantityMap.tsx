@@ -5,7 +5,6 @@ import { Topology, GeometryCollection } from "topojson-specification";
 import "../App.css";
 import us from "../counties-albers-10m.json";
 import zipfips from "../zipfips.json";
-import { updateReturn } from "typescript";
 
 interface ILocationQuantityMapProps {
   data: any[];
@@ -46,21 +45,23 @@ const LocationQuantityMap = ({
   const [countryPath, setCountryPath] = useState<string | undefined>();
   // SVG paths to draw state outlines
   const [statePaths, setStatePaths] = useState<(string | undefined)[]>([]);
+  // Data to map over to render state & county bubbles
   const [stateCircleData, setStateCircleData] = useState<TCircleData[]>();
   const [countyCircleData, setCountyCircleData] = useState<TCircleData[]>();
-  const [pathProjection, setPathProjection] = useState<any>();
-
-  const [zipCountyMap, setZipCountyMap] = useState<TZipCountyMap | null>(null);
+  // Geopath function that converts points/paths to svg positions
+  const [pathProjection, setPathProjection] = useState<d3.GeoPath>();
+  // Number of purchases by states and counties
   const [stateData, setStateData] = useState<TLocationData | null>(null);
   const [countyData, setCountyData] = useState<TLocationData | null>(null);
+  // Whether the user is viewing data for states or counties
   const [vizMode, setVizMode] = useState<"STATE" | "COUNTY">("COUNTY");
 
+  // Building the dict with state/county purchases
   useEffect(() => {
     const newStateData: TLocationData = {};
     const newCountyData: TLocationData = {};
     for (const row of data) {
       const state = row["State"];
-      const zipCode = parseInt(row["Postal Code"]).toString();
       if (state !== "") {
         if (!(state in newStateData)) {
           newStateData[state] = 1;
@@ -68,7 +69,10 @@ const LocationQuantityMap = ({
           newStateData[state]++;
         }
       }
+
+      const zipCode = parseInt(row["Postal Code"]).toString();
       if (zipCode !== "") {
+        // We use each county's unique "FIPS" code as the object index
         const fipsCode = zipToFips?.[zipCode]?.["STCOUNTYFP"] || null;
         if (fipsCode) {
           if (!(fipsCode in newCountyData)) {
@@ -81,10 +85,12 @@ const LocationQuantityMap = ({
     }
     setStateData(newStateData);
     setCountyData(newCountyData);
-  }, [data]);
+  }, [data, setStateData, setCountyData]);
 
+  // Iterate through all states and counties and add them, w/ svg positioning/size, to the circle datas
   useEffect(() => {
-    if (!stateData || !countyData) return;
+    if (!stateData || !countyData || !pathProjection) return;
+
     const stateRadius = d3.scaleSqrt(
       [0, Math.max(...Object.values(stateData))],
       [MIN_BUBBLE_SIZE, MAX_BUBBLE_SIZE]
@@ -108,6 +114,7 @@ const LocationQuantityMap = ({
       [0, Math.max(...Object.values(countyData))],
       [MIN_BUBBLE_SIZE, MAX_BUBBLE_SIZE]
     );
+
     const newCountyCircleData = feature(
       usTopo,
       usTopo.objects.counties as GeometryCollection
@@ -123,10 +130,16 @@ const LocationQuantityMap = ({
         radius: countyRadius(numOrders),
       };
     });
-    console.log(countyCircleData, stateCircleData);
     setCountyCircleData(newCountyCircleData);
   }, [stateData, countyData, pathProjection]);
 
+  // Create projection function and add to state
+  useEffect(() => {
+    const newGeoPath = d3.geoPath();
+    setPathProjection(() => newGeoPath);
+  }, [setPathProjection]);
+
+  // Fade in and out the circle labels upon mouse entering and exiting the circle
   const bubbleOnMouseEnter = useCallback(
     (e: React.MouseEvent<SVGCircleElement, MouseEvent>) => {
       // @ts-ignore
@@ -153,10 +166,7 @@ const LocationQuantityMap = ({
     []
   );
 
-  useEffect(() => {
-    const newGeoPath = d3.geoPath();
-    setPathProjection(() => newGeoPath);
-  }, [width, height, setPathProjection]);
+  // Add the projected country and state paths to state
   useEffect(() => {
     if (!pathProjection) return;
     setCountryPath(
@@ -182,7 +192,6 @@ const LocationQuantityMap = ({
           {statePaths.map((statePath, i) => (
             <path key={i} d={statePath} fill="white" stroke="grey"></path>
           ))}
-          {/* {Object.entries(stateData).map((state, numOrders) => {})} */}
         </g>
         <g>
           {(vizMode == "STATE" ? stateCircleData : countyCircleData)?.map(
