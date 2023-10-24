@@ -62,7 +62,6 @@ function monthNumToTick(monthNum: number) {
   tickName += dictNumShortenedName[(monthNum % 12) + 1];
   tickName += " ";
   tickName += (Math.floor(monthNum / 12) + MIN_YEAR).toString().slice(2);
-  console.log(tickName, monthNum);
   return tickName;
 }
 
@@ -96,10 +95,11 @@ const TimeQuantityLine = ({ data, width, height }: ITimeProfitLineProps) => {
     setCategorySales(newCategorySales);
   }, [data]);
 
-  console.log(categorySales);
-
   return (
     <div>
+      <h2 style={{ textAlign: "center" }}>
+        Quantity of Items Purchased by Month
+      </h2>
       <XYPlot width={width} height={height} margin={{ left: 60 }}>
         <HorizontalGridLines />
         {categorySales &&
@@ -118,8 +118,9 @@ const TimeQuantityLine = ({ data, width, height }: ITimeProfitLineProps) => {
           title="Month"
           tickFormat={(v) => monthNumToTick(v)}
           tickTotal={8}
+          style={{ title: { fontSize: 24 } }}
         />
-        <YAxis title="Quantity ordered" />
+        <YAxis title="Quantity ordered" style={{ title: { fontSize: 24 } }} />
         <DiscreteColorLegend
           height={200}
           width={300}
