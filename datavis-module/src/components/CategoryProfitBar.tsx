@@ -273,9 +273,13 @@ const CategoryProfitBar = (props: ICategoryProfitBarProps) => {
   }, [svgRef, renderData, changeSelectedData, currentCategory, height, width]);
   return (
     <div>
-      <h2 style={{ textAlign: "center" }}>
+      <h2 style={{ textAlign: "center", marginBottom: 8 }}>
         Average Profit by Product Category
       </h2>
+      <h5 style={{ textAlign: "center", fontWeight: "normal", marginTop: 0 }}>
+        {" "}
+        Click category names to view their data
+      </h5>
       <svg width={width} height={height} ref={svgRef}>
         <g>
           {renderData != null

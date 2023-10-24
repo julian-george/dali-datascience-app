@@ -16,10 +16,6 @@ type TLocationData = {
   [state: string]: number;
 };
 
-type TZipCountyMap = {
-  [zipCode: string]: string;
-};
-
 type TCircleData = {
   id: number;
   numOrders: number;
@@ -194,7 +190,7 @@ const LocationQuantityMap = ({
           ))}
         </g>
         <g>
-          {(vizMode == "STATE" ? stateCircleData : countyCircleData)?.map(
+          {(vizMode === "STATE" ? stateCircleData : countyCircleData)?.map(
             (circleData) =>
               circleData.numOrders > 0 ? (
                 <g
@@ -229,7 +225,7 @@ const LocationQuantityMap = ({
       </svg>
       <div className="map-button-row">
         <button
-          disabled={vizMode == "STATE"}
+          disabled={vizMode === "STATE"}
           onClick={() => {
             setVizMode("STATE");
           }}
@@ -237,7 +233,7 @@ const LocationQuantityMap = ({
           State Data
         </button>
         <button
-          disabled={vizMode == "COUNTY"}
+          disabled={vizMode === "COUNTY"}
           onClick={() => {
             setVizMode("COUNTY");
           }}

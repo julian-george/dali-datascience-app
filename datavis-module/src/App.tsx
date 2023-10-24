@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 import CategoryProfitBar from "./components/CategoryProfitBar";
 import LocationQuantityMap from "./components/LocationQuantityMap";
-import TimeProfitLine from "./components/TimeProfitLine";
+import TimeQuantityLine from "./components/TimeQuantityLine";
 import { csv } from "d3";
 
 const DATA_URL =
@@ -21,7 +21,7 @@ const App = () => {
         <div className="figure-container">
           <CategoryProfitBar data={data} height={640} width={1080} />
           <LocationQuantityMap data={data} height={640} width={1080} />
-          <TimeProfitLine />
+          <TimeQuantityLine data={data} height={640} width={1080} />
         </div>
       ) : (
         "Loading..."
