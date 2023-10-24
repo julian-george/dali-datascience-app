@@ -38,7 +38,7 @@ const CATEGORY_COLORS: {
 
 // Returns the number of months since the beginning of the MIN_YEAR
 function monthStringToNum(monthString: string) {
-  const [month, day, year] = monthString.split("/");
+  const [month, _day, year] = monthString.split("/");
   return (Number(year) - MIN_YEAR) * 12 + Number(month);
 }
 
@@ -76,15 +76,15 @@ const TimeQuantityLine = ({ data, width, height }: ITimeProfitLineProps) => {
     for (const row of data) {
       const category = row["Category"];
       const purchaseDate =
-        row["Order Date"] != ""
+        row["Order Date"] !== ""
           ? row["Order Date"]
-          : row["Ship Date"] != ""
+          : row["Ship Date"] !== ""
           ? row["Ship Date"]
           : null;
-      if (!purchaseDate || category == "") continue;
+      if (!purchaseDate || category === "") continue;
       // 1 as a fallback value
       const purchaseQuantity =
-        row["Quantity"] != "" ? Number(row["Quantity"]) : 1;
+        row["Quantity"] !== "" ? Number(row["Quantity"]) : 1;
       const monthNum = monthStringToNum(purchaseDate);
       if (!(category in newCategorySales)) {
         newCategorySales[category] = {};
